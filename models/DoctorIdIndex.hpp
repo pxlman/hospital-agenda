@@ -1,10 +1,10 @@
-#include <vector>
-
+# pragma once
+#include <string>
 
 namespace IndexEntry
 {
     struct DoctorIdIndex{
-        int PK;
-        vector<int> IdArray;
+        int headRRN;
+        std::string doctorId;
     };
 }

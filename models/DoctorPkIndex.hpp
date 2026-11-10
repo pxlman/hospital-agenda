@@ -1,7 +1,10 @@
+# pragma once
+#include <string>
+
 namespace IndexEntry
 {
     struct DoctorPkIndex{
-        int RRN;
-        int PK;
+        int rrn;
+        std::string doctorId;
     };   
 }

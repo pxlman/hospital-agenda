@@ -1,13 +1,10 @@
-#include <iostream>
-#include <vector>
-
-
-using namespace std;
+# pragma once
+#include <string>
 
 namespace IndexEntry
 {
     struct DoctorSpecialtyIndex{
-        int PK;
-        vector<string> SpecialtyArray;
+        int headRRN;
+        std::string specialty;
     };   
 }
