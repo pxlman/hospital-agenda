@@ -8,6 +8,8 @@ private:
     char AppointmentID[15];
     char AppointmentDate[30];
     char DoctorID[15];
+
+public:
     Appointment(const string& id, const string& date, const string& doc_id);
 
     void setAppointmentID(const string& id);
@@ -19,4 +21,4 @@ private:
     string getDoctorID() const;
 };
 
-#endif;
+#endif
