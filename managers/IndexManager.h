@@ -47,12 +47,12 @@ class IndexManager {
         // doctor
         void addDoctor(const Doctor& doctor, int rrn);
         void deleteDoctor(const Doctor& doctor);
-        void updateDoctor(const string& id, const Doctor& newDoctor);
+        void updateDoctor(const Doctor& oldDoctor, const Doctor& newDoctor, int rrn);
 
         // appointment
         void addAppointment(const Appointment& appointment, int rrn);
         void deleteAppointment(const Appointment& appointment);
-        void updateAppointment(const string& id, const Appointment& newAppointment);
+        void updateAppointment(const Appointment& oldApp, const Appointment& newApp, int rrn);
 
         // PK
         int getDoctorRecNoByPk(const string& id);
