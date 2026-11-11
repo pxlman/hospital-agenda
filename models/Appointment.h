@@ -3,13 +3,11 @@
 
 #include <bits/stdc++.h>
 using namespace std;
-class Appointment {
-private:
+struct Appointment {
     char AppointmentID[15];
     char AppointmentDate[30];
     char DoctorID[15];
-
-public:
+    Appointment();
     Appointment(const string& id, const string& date, const string& doc_id);
 
     void setAppointmentID(const string& id);
@@ -19,6 +17,9 @@ public:
     string getAppointmentID() const;
     string getAppointmentDate() const;
     string getDoctorID() const;
+
+    bool isDeleted() const;
+    void print() const;
 };
 
 #endif

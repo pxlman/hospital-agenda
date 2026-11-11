@@ -7,7 +7,7 @@ template <typename T>
 class FileManager {
 private:
     string filePath;
-    const int HEADER_SIZE = sizeof(int); // 4 bytes for the AVAIL LIST head offset[cite: 1, 3]
+    const int HEADER_SIZE = sizeof(int);
 
     // Ensures the file exists and initializes the 4-byte avail list header if empty
     void initializeFile() {
