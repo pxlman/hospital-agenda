@@ -5,11 +5,11 @@
 #include <cstring>
 #include "../models/Doctor.h"
 #include "../models/Appointment.h"
-#include "../models/DoctorPkIndex.hpp"
-#include "../models/DoctorIdIndex.hpp"
-#include "../models/DoctorNameIndex.hpp"
-#include "../models/AppointmentPkIndex.hpp"
-#include "../models/DoctorSpecialtyIndex.hpp"
+#include "../dtos/DoctorPkIndex.hpp"
+#include "../dtos/DoctorIdIndex.hpp"
+#include "../dtos/DoctorNameIndex.hpp"
+#include "../dtos/AppointmentPkIndex.hpp"
+#include "../dtos/DoctorSpecialtyIndex.hpp"
 
 
 using namespace std;
