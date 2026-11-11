@@ -9,6 +9,7 @@ struct Doctor {
     char DoctorName[30];
     char DoctorSpecialty[20];
     char Address[30];
+    Doctor();
     Doctor(const string& id, const string& name, const string& specialty, const string& address);
 
     void setDoctorID(const string& id);

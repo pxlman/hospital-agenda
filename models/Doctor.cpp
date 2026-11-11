@@ -9,6 +9,13 @@ void copyText(char (&destination)[N], const string& value) {
 }
 }
 
+Doctor::Doctor() {
+    memset(DoctorID, ' ', sizeof(DoctorID));
+    memset(DoctorName, ' ', sizeof(DoctorName));
+    memset(DoctorSpecialty, ' ', sizeof(DoctorSpecialty));
+    memset(Address, ' ', sizeof(Address));
+}
+
 Doctor::Doctor(const string& id, const string& name, const string& specialty, const string& address) {
     setDoctorID(id);
     setDoctorName(name);
@@ -46,4 +53,15 @@ string Doctor::getDoctorSpecialty() const {
 
 string Doctor::getAddress() const {
     return Address;
+}
+
+bool Doctor::isDeleted() const {
+    return DoctorID[0] == '*';
+}
+
+void Doctor::print() const {
+    std::cout   << "ID: " << getDoctorID() 
+                << " | Name: " << getDoctorName() 
+                << " | Specialty: " << getDoctorSpecialty() 
+                << " | Address: " << getAddress() << "\n";
 }
