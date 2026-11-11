@@ -12,6 +12,23 @@ void IndexManager::initLinks(int maxDoctors, int maxAppointments) {
     doctorIdLink.assign(maxAppointments, -1);
 }
 
+void writeFixedString(ofstream& out, const string& str, int size) {
+    char* buffer = new char[size];
+    memset(buffer, 0, size);
+    strncpy(buffer, str.c_str(), size - 1);
+    out.write(buffer, size);
+    delete[] buffer;
+}
+
+string readFixedString(ifstream& in, int size) {
+    char* buffer = new char[size + 1];
+    in.read(buffer, size);
+    buffer[size] = '\0';
+    string result(buffer);
+    delete[] buffer;
+    return result;
+}
+
 int IndexManager::binarySearchString(const vector<DoctorPkIndex>& arr, const string& target) {
     int l = 0, r = arr.size() - 1;
     while (l <= r) {
@@ -65,6 +82,150 @@ int IndexManager::binarySearchString(const vector<DoctorIdIndex>& arr, const str
         else r = mid - 1;
     }
     return -1;
+}
+
+
+// INDEXES
+void IndexManager::saveIndexes() {
+    ofstream docPkOut("../data/Indexes/DoctorPK.bin", ios::binary | ios::trunc);
+    for (const auto& entry : doctorPkIndex) {
+        docPkOut.write(reinterpret_cast<const char*>(&entry.rrn), sizeof(int));
+        writeFixedString(docPkOut, entry.doctorId, 15);
+    }
+    docPkOut.close();
+
+    ofstream appPkOut("../data/Indexes/AppointmentPK.bin", ios::binary | ios::trunc);
+    for (const auto& entry : appointmentPkIndex) {
+        appPkOut.write(reinterpret_cast<const char*>(&entry.rrn), sizeof(int));
+        writeFixedString(appPkOut, entry.appointmentId, 15);
+    }
+    appPkOut.close();
+
+    ofstream nameOut("../data/Indexes/DoctorName.bin", ios::binary | ios::trunc);
+    for (const auto& entry : doctorNameIndex) {
+        nameOut.write(reinterpret_cast<const char*>(&entry.headRRN), sizeof(int));
+        writeFixedString(nameOut, entry.name, 30);
+    }
+    nameOut.close();
+
+    ofstream specOut("../data/Indexes/DoctorSpecialty.bin", ios::binary | ios::trunc);
+    for (const auto& entry : doctorSpecialtyIndex) {
+        specOut.write(reinterpret_cast<const char*>(&entry.headRRN), sizeof(int));
+        writeFixedString(specOut, entry.specialty, 20);
+    }
+    specOut.close();
+
+    ofstream docIdOut("../data/Indexes/DoctorID.bin", ios::binary | ios::trunc);
+    for (const auto& entry : doctorIdIndex) {
+        docIdOut.write(reinterpret_cast<const char*>(&entry.headRRN), sizeof(int));
+        writeFixedString(docIdOut, entry.doctorId, 15);
+    }
+    docIdOut.close();
+
+    ofstream nameLinkOut("../data/Indexes/DoctorNameLinks.bin", ios::binary | ios::trunc);
+    for (int rrn : doctorNameLink) nameLinkOut.write(reinterpret_cast<const char*>(&rrn), sizeof(int));
+    nameLinkOut.close();
+
+    ofstream specLinkOut("../data/Indexes/DoctorSpecialtyLinks.bin", ios::binary | ios::trunc);
+    for (int rrn : doctorSpecialtyLink) specLinkOut.write(reinterpret_cast<const char*>(&rrn), sizeof(int));
+    specLinkOut.close();
+
+    ofstream docIdLinkOut("../data/Indexes/DoctorIDLinks.bin", ios::binary | ios::trunc);
+    for (int rrn : doctorIdLink) docIdLinkOut.write(reinterpret_cast<const char*>(&rrn), sizeof(int));
+    docIdLinkOut.close();
+}
+
+void IndexManager::loadIndexes() {
+    doctorPkIndex.clear();
+    appointmentPkIndex.clear();
+    doctorNameIndex.clear();
+    doctorSpecialtyIndex.clear();
+    doctorIdIndex.clear();
+    doctorNameLink.clear();
+    doctorSpecialtyLink.clear();
+    doctorIdLink.clear();
+
+    ifstream docPkIn("../data/Indexes/DoctorPK.bin", ios::binary);
+    if (docPkIn.is_open()) {
+        while (docPkIn.peek() != EOF) {
+            DoctorPkIndex entry;
+            docPkIn.read(reinterpret_cast<char*>(&entry.rrn), sizeof(int));
+            entry.doctorId = readFixedString(docPkIn, 15);
+            doctorPkIndex.push_back(entry);
+        }
+        docPkIn.close();
+    }
+
+    ifstream appPkIn("../data/Indexes/AppointmentPK.bin", ios::binary);
+    if (appPkIn.is_open()) {
+        while (appPkIn.peek() != EOF) {
+            AppointmentPkIndex entry;
+            appPkIn.read(reinterpret_cast<char*>(&entry.rrn), sizeof(int));
+            entry.appointmentId = readFixedString(appPkIn, 15);
+            appointmentPkIndex.push_back(entry);
+        }
+        appPkIn.close();
+    }
+
+    ifstream nameIn("../data/Indexes/DoctorName.bin", ios::binary);
+    if (nameIn.is_open()) {
+        while (nameIn.peek() != EOF) {
+            DoctorNameIndex entry;
+            nameIn.read(reinterpret_cast<char*>(&entry.headRRN), sizeof(int));
+            entry.name = readFixedString(nameIn, 30);
+            doctorNameIndex.push_back(entry);
+        }
+        nameIn.close();
+    }
+
+    ifstream specIn("../data/Indexes/DoctorSpecialty.bin", ios::binary);
+    if (specIn.is_open()) {
+        while (specIn.peek() != EOF) {
+            DoctorSpecialtyIndex entry;
+            specIn.read(reinterpret_cast<char*>(&entry.headRRN), sizeof(int));
+            entry.specialty = readFixedString(specIn, 20);
+            doctorSpecialtyIndex.push_back(entry);
+        }
+        specIn.close();
+    }
+
+    ifstream docIdIn("../data/Indexes/DoctorID.bin", ios::binary);
+    if (docIdIn.is_open()) {
+        while (docIdIn.peek() != EOF) {
+            DoctorIdIndex entry;
+            docIdIn.read(reinterpret_cast<char*>(&entry.headRRN), sizeof(int));
+            entry.doctorId = readFixedString(docIdIn, 15);
+            doctorIdIndex.push_back(entry);
+        }
+        docIdIn.close();
+    }
+
+    ifstream nameLinkIn("../data/Indexes/DoctorNameLinks.bin", ios::binary);
+    if (nameLinkIn.is_open()) {
+        int rrn;
+        while (nameLinkIn.read(reinterpret_cast<char*>(&rrn), sizeof(int))) {
+            doctorNameLink.push_back(rrn);
+        }
+        nameLinkIn.close();
+    }
+
+    ifstream specLinkIn("../data/Indexes/DoctorSpecialtyLinks.bin", ios::binary);
+    if (specLinkIn.is_open()) {
+        int rrn;
+        while (specLinkIn.read(reinterpret_cast<char*>(&rrn), sizeof(int))) {
+            doctorSpecialtyLink.push_back(rrn);
+        }
+        specLinkIn.close();
+    }
+
+    ifstream docIdLinkIn("../data/Indexes/DoctorIDLinks.bin", ios::binary);
+    if (docIdLinkIn.is_open()) {
+        int rrn;
+        while (docIdLinkIn.read(reinterpret_cast<char*>(&rrn), sizeof(int))) {
+            doctorIdLink.push_back(rrn);
+        }
+        docIdLinkIn.close();
+    }
 }
 
 

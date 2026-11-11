@@ -44,6 +44,10 @@ class IndexManager {
 
         void initLinks(int maxDoctors, int maxAppointments);
 
+        // file functions
+        void saveIndexes();
+        void loadIndexes();
+
         // doctor
         void addDoctor(const Doctor& doctor, int rrn);
         void deleteDoctor(const Doctor& doctor);
