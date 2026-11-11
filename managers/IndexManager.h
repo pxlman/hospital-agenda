@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vector>
+#include <fstream>
+#include <cstring>
 #include "../models/Doctor.h"
 #include "../models/Appointment.h"
 #include "../models/DoctorPkIndex.hpp"
@@ -43,6 +45,9 @@ class IndexManager {
         IndexManager();
 
         void initLinks(int maxDoctors, int maxAppointments);
+
+        int getDoctorNameLinkSize() const { return doctorNameLink.size(); }
+        int getDoctorIdLinkSize() const { return doctorIdLink.size(); }
 
         // file functions
         void saveIndexes();
