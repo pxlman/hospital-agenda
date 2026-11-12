@@ -1,4 +1,6 @@
 #include "DoctorRepository.h"
+#include "../models/Appointment.h"
+#include "../managers/FileManager.h"
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -44,6 +46,16 @@ bool DoctorRepository::deleteDoctor(const string& doctorId) {
     }
 
     Doctor doctor = fileManager.readRecord(rrn);
+
+    FileManager<Appointment> appointmentFileManager("../data/Appointments.bin");
+    vector<int> relatedAppointmentRRNs = indexManager.getAppointmentRecNoByDoctorId(doctorId);
+
+    for (int appRrn : relatedAppointmentRRNs) {
+        Appointment appointment = appointmentFileManager.readRecord(appRrn);
+        appointmentFileManager.deleteRecord(appRrn);
+        indexManager.deleteAppointment(appointment);
+    }
+
     fileManager.deleteRecord(rrn);
     indexManager.deleteDoctor(doctor);
     indexManager.saveIndexes();
@@ -91,6 +103,19 @@ bool DoctorRepository::updateDoctorId(const string& oldDoctorId, const string& n
 
     fileManager.updateRecord(rrn, newDoctor);
     indexManager.updateDoctor(oldDoctor, newDoctor, rrn);
+
+    FileManager<Appointment> appointmentFileManager("../data/Appointments.bin");
+    vector<int> relatedAppointmentRRNs = indexManager.getAppointmentRecNoByDoctorId(oldDoctorId);
+
+    for (int appRrn : relatedAppointmentRRNs) {
+        Appointment oldApp = appointmentFileManager.readRecord(appRrn);
+        Appointment newApp = oldApp;
+        
+        newApp.setDoctorID(newDoctorId);
+        appointmentFileManager.updateRecord(appRrn, newApp);
+        indexManager.updateAppointment(oldApp, newApp, appRrn);
+    }
+
     indexManager.saveIndexes();
     return true;
 }
