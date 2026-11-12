@@ -3,8 +3,8 @@
 #include <stdexcept>
 #include <vector>
 
-DoctorRepository::DoctorRepository(const string& path) 
-    : fileManager(path), dataFilePath(path) {
+DoctorRepository::DoctorRepository(const string& path, IndexManager& idxMgr) 
+    : fileManager(path), indexManager(idxMgr), dataFilePath(path) {
     indexManager.loadIndexes();
 }
 

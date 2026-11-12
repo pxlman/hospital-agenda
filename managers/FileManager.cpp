@@ -4,14 +4,16 @@
 
 template <typename T>
 void FileManager<T>::initializeFile() {
-    ifstream checker(filePath, ios::binary);
-    if (!checker.is_open()) {
-        ofstream creator(filePath, ios::binary);
-        int initialAvailHead = -1;
-        creator.write(reinterpret_cast<const char*>(&initialAvailHead), sizeof(int));
-        creator.close();
-    }
+    ifstream checker(filePath, ios::binary | ios::ate);
+    streampos fileSize = checker.is_open() ? checker.tellg() : streampos(-1);
     checker.close();
+
+    if (fileSize != 0) return;
+
+    ofstream creator(filePath, ios::binary);
+    int initialAvailHead = -1;
+    creator.write(reinterpret_cast<const char*>(&initialAvailHead), sizeof(int));
+    creator.close();
 }
 
 template <typename T>

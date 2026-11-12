@@ -11,11 +11,11 @@ using namespace std;
 class DoctorRepository {
 private:
     FileManager<Doctor> fileManager;
-    IndexManager indexManager;
+    IndexManager& indexManager;
     string dataFilePath;
 
 public:
-    DoctorRepository(const string& path);
+    DoctorRepository(const string& path, IndexManager& idxMgr);
 
     bool addDoctor(const Doctor& doctor);
     bool deleteDoctor(const string& doctorId);
