@@ -28,6 +28,8 @@ public:
     
     void loadAllIndexes();
     void saveAllIndexes();
+
+    vector<Doctor> getAllDoctors();
 };
 
 #endif

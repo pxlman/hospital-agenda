@@ -1,6 +1,7 @@
 #include "DoctorRepository.h"
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 
 DoctorRepository::DoctorRepository(const string& path) 
     : fileManager(path), dataFilePath(path) {
@@ -134,4 +135,16 @@ void DoctorRepository::loadAllIndexes() {
 
 void DoctorRepository::saveAllIndexes() {
     indexManager.saveIndexes();
+}
+
+vector<Doctor> DoctorRepository::getAllDoctors() {
+    vector<Doctor> doctors;
+    int recordCount = fileManager.getRecordCount();
+    for (int i = 0; i < recordCount; ++i) {
+        Doctor doctor = fileManager.readRecord(i);
+        if (!doctor.isDeleted()) {
+            doctors.push_back(doctor);
+        }
+    }
+    return doctors;
 }
