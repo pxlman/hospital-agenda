@@ -1,16 +1,10 @@
 #include "IndexManager.h"
-
+#include <algorithm>
 
 using namespace std;
 using namespace IndexEntry;
 
 IndexManager::IndexManager() {}
-
-void IndexManager::initLinks(int maxDoctors, int maxAppointments) {
-    doctorNameLink.assign(maxDoctors, -1);
-    doctorSpecialtyLink.assign(maxDoctors, -1);
-    doctorIdLink.assign(maxAppointments, -1);
-}
 
 void writeFixedString(ofstream& out, const string& str, int size) {
     char* buffer = new char[size];
@@ -29,6 +23,7 @@ string readFixedString(ifstream& in, int size) {
     return result;
 }
 
+// Binary Searches
 int IndexManager::binarySearchString(const vector<DoctorPkIndex>& arr, const string& target) {
     int l = 0, r = arr.size() - 1;
     while (l <= r) {
@@ -122,16 +117,26 @@ void IndexManager::saveIndexes() {
     }
     docIdOut.close();
 
+    // --- SAVE LINK NODES ---
     ofstream nameLinkOut("../data/Indexes/DoctorNameLinks.bin", ios::binary | ios::trunc);
-    for (int rrn : doctorNameLink) nameLinkOut.write(reinterpret_cast<const char*>(&rrn), sizeof(int));
+    for (const auto& node : doctorNameLink) {
+        writeFixedString(nameLinkOut, node.primaryKey, 15);
+        nameLinkOut.write(reinterpret_cast<const char*>(&node.nextNodeIndex), sizeof(int));
+    }
     nameLinkOut.close();
 
     ofstream specLinkOut("../data/Indexes/DoctorSpecialtyLinks.bin", ios::binary | ios::trunc);
-    for (int rrn : doctorSpecialtyLink) specLinkOut.write(reinterpret_cast<const char*>(&rrn), sizeof(int));
+    for (const auto& node : doctorSpecialtyLink) {
+        writeFixedString(specLinkOut, node.primaryKey, 15);
+        specLinkOut.write(reinterpret_cast<const char*>(&node.nextNodeIndex), sizeof(int));
+    }
     specLinkOut.close();
 
     ofstream docIdLinkOut("../data/Indexes/DoctorIDLinks.bin", ios::binary | ios::trunc);
-    for (int rrn : doctorIdLink) docIdLinkOut.write(reinterpret_cast<const char*>(&rrn), sizeof(int));
+    for (const auto& node : doctorIdLink) {
+        writeFixedString(docIdLinkOut, node.primaryKey, 15);
+        docIdLinkOut.write(reinterpret_cast<const char*>(&node.nextNodeIndex), sizeof(int));
+    }
     docIdLinkOut.close();
 }
 
@@ -200,29 +205,36 @@ void IndexManager::loadIndexes() {
         docIdIn.close();
     }
 
+    // --- LOAD LINK NODES ---
     ifstream nameLinkIn("../data/Indexes/DoctorNameLinks.bin", ios::binary);
     if (nameLinkIn.is_open()) {
-        int rrn;
-        while (nameLinkIn.read(reinterpret_cast<char*>(&rrn), sizeof(int))) {
-            doctorNameLink.push_back(rrn);
+        while (nameLinkIn.peek() != EOF) {
+            LinkNode node;
+            node.primaryKey = readFixedString(nameLinkIn, 15);
+            nameLinkIn.read(reinterpret_cast<char*>(&node.nextNodeIndex), sizeof(int));
+            doctorNameLink.push_back(node);
         }
         nameLinkIn.close();
     }
 
     ifstream specLinkIn("../data/Indexes/DoctorSpecialtyLinks.bin", ios::binary);
     if (specLinkIn.is_open()) {
-        int rrn;
-        while (specLinkIn.read(reinterpret_cast<char*>(&rrn), sizeof(int))) {
-            doctorSpecialtyLink.push_back(rrn);
+        while (specLinkIn.peek() != EOF) {
+            LinkNode node;
+            node.primaryKey = readFixedString(specLinkIn, 15);
+            specLinkIn.read(reinterpret_cast<char*>(&node.nextNodeIndex), sizeof(int));
+            doctorSpecialtyLink.push_back(node);
         }
         specLinkIn.close();
     }
 
     ifstream docIdLinkIn("../data/Indexes/DoctorIDLinks.bin", ios::binary);
     if (docIdLinkIn.is_open()) {
-        int rrn;
-        while (docIdLinkIn.read(reinterpret_cast<char*>(&rrn), sizeof(int))) {
-            doctorIdLink.push_back(rrn);
+        while (docIdLinkIn.peek() != EOF) {
+            LinkNode node;
+            node.primaryKey = readFixedString(docIdLinkIn, 15);
+            docIdLinkIn.read(reinterpret_cast<char*>(&node.nextNodeIndex), sizeof(int));
+            doctorIdLink.push_back(node);
         }
         docIdLinkIn.close();
     }
@@ -230,37 +242,41 @@ void IndexManager::loadIndexes() {
 
 
 // DOCTORS
-
 void IndexManager::addDoctor(const Doctor& doctor, int rrn) {
     if (getDoctorRecNoByPk(doctor.getDoctorID()) != -1) return;
 
+    // 1. PK Insert (Binary Search)
     DoctorPkIndex pkEntry {rrn, doctor.getDoctorID()};
-    auto it = doctorPkIndex.begin();
-    while (it != doctorPkIndex.end() && it->doctorId < doctor.getDoctorID()) ++it;
+    auto it = lower_bound(doctorPkIndex.begin(), doctorPkIndex.end(), doctor.getDoctorID(), 
+        [](const DoctorPkIndex& entry, const string& id) { return entry.doctorId < id; });
     doctorPkIndex.insert(it, pkEntry);
 
+    // 2. Name SK Insert
     int nameIdx = binarySearchString(doctorNameIndex, doctor.getDoctorName());
     if (nameIdx != -1) {
-        doctorNameLink[rrn] = doctorNameIndex[nameIdx].headRRN; 
-        doctorNameIndex[nameIdx].headRRN = rrn; 
+        int oldHeadNode = doctorNameIndex[nameIdx].headRRN; 
+        doctorNameLink.push_back({doctor.getDoctorID(), oldHeadNode});
+        doctorNameIndex[nameIdx].headRRN = doctorNameLink.size() - 1; 
     } else {
-        DoctorNameIndex newNameEntry {rrn, doctor.getDoctorName()};
-        auto itName = doctorNameIndex.begin();
-        while (itName != doctorNameIndex.end() && itName->name < doctor.getDoctorName()) ++itName;
+        doctorNameLink.push_back({doctor.getDoctorID(), -1});
+        DoctorNameIndex newNameEntry {(int)doctorNameLink.size() - 1, doctor.getDoctorName()};
+        auto itName = lower_bound(doctorNameIndex.begin(), doctorNameIndex.end(), doctor.getDoctorName(),
+            [](const DoctorNameIndex& entry, const string& val) { return entry.name < val; });
         doctorNameIndex.insert(itName, newNameEntry);
-        doctorNameLink[rrn] = -1; 
     }
 
+    // 3. Specialty SK Insert
     int specIdx = binarySearchString(doctorSpecialtyIndex, doctor.getDoctorSpecialty());
     if (specIdx != -1) {
-        doctorSpecialtyLink[rrn] = doctorSpecialtyIndex[specIdx].headRRN;
-        doctorSpecialtyIndex[specIdx].headRRN = rrn;
+        int oldHeadNode = doctorSpecialtyIndex[specIdx].headRRN;
+        doctorSpecialtyLink.push_back({doctor.getDoctorID(), oldHeadNode});
+        doctorSpecialtyIndex[specIdx].headRRN = doctorSpecialtyLink.size() - 1;
     } else {
-        DoctorSpecialtyIndex newSpecEntry {rrn, doctor.getDoctorSpecialty()};
-        auto itSpec = doctorSpecialtyIndex.begin();
-        while (itSpec != doctorSpecialtyIndex.end() && itSpec->specialty < doctor.getDoctorSpecialty()) ++itSpec;
+        doctorSpecialtyLink.push_back({doctor.getDoctorID(), -1});
+        DoctorSpecialtyIndex newSpecEntry {(int)doctorSpecialtyLink.size() - 1, doctor.getDoctorSpecialty()};
+        auto itSpec = lower_bound(doctorSpecialtyIndex.begin(), doctorSpecialtyIndex.end(), doctor.getDoctorSpecialty(),
+            [](const DoctorSpecialtyIndex& entry, const string& val) { return entry.specialty < val; });
         doctorSpecialtyIndex.insert(itSpec, newSpecEntry);
-        doctorSpecialtyLink[rrn] = -1;
     }
 }
 
@@ -271,126 +287,113 @@ void IndexManager::deleteDoctor(const Doctor& doctor) {
     int pkIdx = binarySearchString(doctorPkIndex, doctor.getDoctorID());
     if (pkIdx != -1) doctorPkIndex.erase(doctorPkIndex.begin() + pkIdx);
 
-    int nameIdx = binarySearchString(doctorNameIndex, doctor.getDoctorName());
-    if (nameIdx != -1) {
-        int head = doctorNameIndex[nameIdx].headRRN;
-        if (head == rrn) { 
-            doctorNameIndex[nameIdx].headRRN = doctorNameLink[rrn];
-        } else {
-            int curr = head;
-            while (curr != -1 && doctorNameLink[curr] != rrn) {
-                curr = doctorNameLink[curr];
+    // Helper to unlink by Primary Key
+    auto unlinkFromList = [&](auto& indexVec, auto& linkVec, const string& key) {
+        int idx = binarySearchString(indexVec, key);
+        if (idx == -1) return;
+        
+        int currNode = indexVec[idx].headRRN;
+        int prevNode = -1;
+        
+        while (currNode != -1) {
+            if (linkVec[currNode].primaryKey == doctor.getDoctorID()) {
+                if (prevNode == -1) {
+                    indexVec[idx].headRRN = linkVec[currNode].nextNodeIndex; 
+                } else {
+                    linkVec[prevNode].nextNodeIndex = linkVec[currNode].nextNodeIndex; 
+                }
+                break;
             }
-            if (curr != -1) {
-                doctorNameLink[curr] = doctorNameLink[rrn];
-            }
+            prevNode = currNode;
+            currNode = linkVec[currNode].nextNodeIndex;
         }
-        if (doctorNameIndex[nameIdx].headRRN == -1) {
-            doctorNameIndex.erase(doctorNameIndex.begin() + nameIdx);
+        
+        if (indexVec[idx].headRRN == -1) {
+            indexVec.erase(indexVec.begin() + idx); 
         }
-    }
+    };
 
-    int specIdx = binarySearchString(doctorSpecialtyIndex, doctor.getDoctorSpecialty());
-    if (specIdx != -1) {
-        int head = doctorSpecialtyIndex[specIdx].headRRN;
-        if (head == rrn) {
-            doctorSpecialtyIndex[specIdx].headRRN = doctorSpecialtyLink[rrn];
-        } else {
-            int curr = head;
-            while (curr != -1 && doctorSpecialtyLink[curr] != rrn) {
-                curr = doctorSpecialtyLink[curr];
-            }
-            if (curr != -1) doctorSpecialtyLink[curr] = doctorSpecialtyLink[rrn];
-        }
-        if (doctorSpecialtyIndex[specIdx].headRRN == -1) {
-            doctorSpecialtyIndex.erase(doctorSpecialtyIndex.begin() + specIdx);
-        }
-    }
+    unlinkFromList(doctorNameIndex, doctorNameLink, doctor.getDoctorName());
+    unlinkFromList(doctorSpecialtyIndex, doctorSpecialtyLink, doctor.getDoctorSpecialty());
 }
 
-
 void IndexManager::updateDoctor(const Doctor& oldDoctor, const Doctor& newDoctor, int rrn) {
+    // 1. Update PK
     if (oldDoctor.getDoctorID() != newDoctor.getDoctorID()) {
         int pkIdx = binarySearchString(doctorPkIndex, oldDoctor.getDoctorID());
-        if (pkIdx != -1) {
-            doctorPkIndex.erase(doctorPkIndex.begin() + pkIdx);
-        }
+        if (pkIdx != -1) doctorPkIndex.erase(doctorPkIndex.begin() + pkIdx);
 
         DoctorPkIndex newPkEntry {rrn, newDoctor.getDoctorID()};
-        auto it = doctorPkIndex.begin();
-        while (it != doctorPkIndex.end() && it->doctorId < newDoctor.getDoctorID()) {
-            ++it;
-        }
+        auto it = lower_bound(doctorPkIndex.begin(), doctorPkIndex.end(), newDoctor.getDoctorID(),
+            [](const DoctorPkIndex& entry, const string& id) { return entry.doctorId < id; });
         doctorPkIndex.insert(it, newPkEntry);
     }
 
+    // 2. Update Name
     if (oldDoctor.getDoctorName() != newDoctor.getDoctorName()) {
+        // Unlink Old
         int oldNameIdx = binarySearchString(doctorNameIndex, oldDoctor.getDoctorName());
         if (oldNameIdx != -1) {
-            int head = doctorNameIndex[oldNameIdx].headRRN;
-            if (head == rrn) {
-                doctorNameIndex[oldNameIdx].headRRN = doctorNameLink[rrn];
-            } else {
-                int curr = head;
-                while (curr != -1 && doctorNameLink[curr] != rrn) {
-                    curr = doctorNameLink[curr];
+            int currNode = doctorNameIndex[oldNameIdx].headRRN;
+            int prevNode = -1;
+            while (currNode != -1) {
+                if (doctorNameLink[currNode].primaryKey == oldDoctor.getDoctorID()) {
+                    if (prevNode == -1) doctorNameIndex[oldNameIdx].headRRN = doctorNameLink[currNode].nextNodeIndex;
+                    else doctorNameLink[prevNode].nextNodeIndex = doctorNameLink[currNode].nextNodeIndex;
+                    break;
                 }
-                if (curr != -1) {
-                    doctorNameLink[curr] = doctorNameLink[rrn];
-                }
+                prevNode = currNode;
+                currNode = doctorNameLink[currNode].nextNodeIndex;
             }
-            if (doctorNameIndex[oldNameIdx].headRRN == -1) {
-                doctorNameIndex.erase(doctorNameIndex.begin() + oldNameIdx);
-            }
+            if (doctorNameIndex[oldNameIdx].headRRN == -1) doctorNameIndex.erase(doctorNameIndex.begin() + oldNameIdx);
         }
 
+        // Link New
         int newNameIdx = binarySearchString(doctorNameIndex, newDoctor.getDoctorName());
         if (newNameIdx != -1) {
-            doctorNameLink[rrn] = doctorNameIndex[newNameIdx].headRRN;
-            doctorNameIndex[newNameIdx].headRRN = rrn;
+            int oldHeadNode = doctorNameIndex[newNameIdx].headRRN;
+            doctorNameLink.push_back({newDoctor.getDoctorID(), oldHeadNode});
+            doctorNameIndex[newNameIdx].headRRN = doctorNameLink.size() - 1;
         } else {
-            DoctorNameIndex newEntry {rrn, newDoctor.getDoctorName()};
-            auto itName = doctorNameIndex.begin();
-            while (itName != doctorNameIndex.end() && itName->name < newDoctor.getDoctorName()) {
-                ++itName;
-            }
+            doctorNameLink.push_back({newDoctor.getDoctorID(), -1});
+            DoctorNameIndex newEntry {(int)doctorNameLink.size() - 1, newDoctor.getDoctorName()};
+            auto itName = lower_bound(doctorNameIndex.begin(), doctorNameIndex.end(), newDoctor.getDoctorName(),
+                [](const DoctorNameIndex& entry, const string& val) { return entry.name < val; });
             doctorNameIndex.insert(itName, newEntry);
-            doctorNameLink[rrn] = -1;
         }
     }
 
+    // 3. Update Specialty
     if (oldDoctor.getDoctorSpecialty() != newDoctor.getDoctorSpecialty()) {
+        // Unlink Old
         int oldSpecIdx = binarySearchString(doctorSpecialtyIndex, oldDoctor.getDoctorSpecialty());
         if (oldSpecIdx != -1) {
-            int head = doctorSpecialtyIndex[oldSpecIdx].headRRN;
-            if (head == rrn) {
-                doctorSpecialtyIndex[oldSpecIdx].headRRN = doctorSpecialtyLink[rrn];
-            } else {
-                int curr = head;
-                while (curr != -1 && doctorSpecialtyLink[curr] != rrn) {
-                    curr = doctorSpecialtyLink[curr];
+            int currNode = doctorSpecialtyIndex[oldSpecIdx].headRRN;
+            int prevNode = -1;
+            while (currNode != -1) {
+                if (doctorSpecialtyLink[currNode].primaryKey == oldDoctor.getDoctorID()) {
+                    if (prevNode == -1) doctorSpecialtyIndex[oldSpecIdx].headRRN = doctorSpecialtyLink[currNode].nextNodeIndex;
+                    else doctorSpecialtyLink[prevNode].nextNodeIndex = doctorSpecialtyLink[currNode].nextNodeIndex;
+                    break;
                 }
-                if (curr != -1) {
-                    doctorSpecialtyLink[curr] = doctorSpecialtyLink[rrn];
-                }
+                prevNode = currNode;
+                currNode = doctorSpecialtyLink[currNode].nextNodeIndex;
             }
-            if (doctorSpecialtyIndex[oldSpecIdx].headRRN == -1) {
-                doctorSpecialtyIndex.erase(doctorSpecialtyIndex.begin() + oldSpecIdx);
-            }
+            if (doctorSpecialtyIndex[oldSpecIdx].headRRN == -1) doctorSpecialtyIndex.erase(doctorSpecialtyIndex.begin() + oldSpecIdx);
         }
 
+        // Link New
         int newSpecIdx = binarySearchString(doctorSpecialtyIndex, newDoctor.getDoctorSpecialty());
         if (newSpecIdx != -1) {
-            doctorSpecialtyLink[rrn] = doctorSpecialtyIndex[newSpecIdx].headRRN;
-            doctorSpecialtyIndex[newSpecIdx].headRRN = rrn;
+            int oldHeadNode = doctorSpecialtyIndex[newSpecIdx].headRRN;
+            doctorSpecialtyLink.push_back({newDoctor.getDoctorID(), oldHeadNode});
+            doctorSpecialtyIndex[newSpecIdx].headRRN = doctorSpecialtyLink.size() - 1;
         } else {
-            DoctorSpecialtyIndex newEntry {rrn, newDoctor.getDoctorSpecialty()};
-            auto itSpec = doctorSpecialtyIndex.begin();
-            while (itSpec != doctorSpecialtyIndex.end() && itSpec->specialty < newDoctor.getDoctorSpecialty()) {
-                ++itSpec;
-            }
+            doctorSpecialtyLink.push_back({newDoctor.getDoctorID(), -1});
+            DoctorSpecialtyIndex newEntry {(int)doctorSpecialtyLink.size() - 1, newDoctor.getDoctorSpecialty()};
+            auto itSpec = lower_bound(doctorSpecialtyIndex.begin(), doctorSpecialtyIndex.end(), newDoctor.getDoctorSpecialty(),
+                [](const DoctorSpecialtyIndex& entry, const string& val) { return entry.specialty < val; });
             doctorSpecialtyIndex.insert(itSpec, newEntry);
-            doctorSpecialtyLink[rrn] = -1;
         }
     }
 }
@@ -405,10 +408,12 @@ vector<int> IndexManager::getDoctorRecNoByName(const string& name) {
     int idx = binarySearchString(doctorNameIndex, name);
     if (idx == -1) return results;
 
-    int curr = doctorNameIndex[idx].headRRN;
-    while (curr != -1) {
-        results.push_back(curr); 
-        curr = doctorNameLink[curr]; 
+    int currNode = doctorNameIndex[idx].headRRN;
+    while (currNode != -1) {
+        string pk = doctorNameLink[currNode].primaryKey;
+        int rrn = getDoctorRecNoByPk(pk); // Bound to PK!
+        if (rrn != -1) results.push_back(rrn);
+        currNode = doctorNameLink[currNode].nextNodeIndex; 
     }
     return results;
 }
@@ -418,35 +423,39 @@ vector<int> IndexManager::getDoctorRecNoBySpecialty(const string& specialty) {
     int idx = binarySearchString(doctorSpecialtyIndex, specialty);
     if (idx == -1) return results;
 
-    int curr = doctorSpecialtyIndex[idx].headRRN;
-    while (curr != -1) {
-        results.push_back(curr);
-        curr = doctorSpecialtyLink[curr];
+    int currNode = doctorSpecialtyIndex[idx].headRRN;
+    while (currNode != -1) {
+        string pk = doctorSpecialtyLink[currNode].primaryKey;
+        int rrn = getDoctorRecNoByPk(pk);
+        if (rrn != -1) results.push_back(rrn);
+        currNode = doctorSpecialtyLink[currNode].nextNodeIndex;
     }
     return results;
 }
 
 
 // APPOINTMENTS
-
 void IndexManager::addAppointment(const Appointment& appointment, int rrn) {
     if (getAppointmentRecNoByPk(appointment.getAppointmentID()) != -1) return;
 
+    // 1. PK Insert
     AppointmentPkIndex pkEntry {rrn, appointment.getAppointmentID()};
-    auto it = appointmentPkIndex.begin();
-    while (it != appointmentPkIndex.end() && it->appointmentId < appointment.getAppointmentID()) ++it;
+    auto it = lower_bound(appointmentPkIndex.begin(), appointmentPkIndex.end(), appointment.getAppointmentID(), 
+        [](const AppointmentPkIndex& entry, const string& id) { return entry.appointmentId < id; });
     appointmentPkIndex.insert(it, pkEntry);
 
+    // 2. Doctor ID SK Insert
     int docIdx = binarySearchString(doctorIdIndex, appointment.getDoctorID());
     if (docIdx != -1) {
-        doctorIdLink[rrn] = doctorIdIndex[docIdx].headRRN;
-        doctorIdIndex[docIdx].headRRN = rrn;
+        int oldHeadNode = doctorIdIndex[docIdx].headRRN;
+        doctorIdLink.push_back({appointment.getAppointmentID(), oldHeadNode});
+        doctorIdIndex[docIdx].headRRN = doctorIdLink.size() - 1;
     } else {
-        DoctorIdIndex newDocEntry {rrn, appointment.getDoctorID()};
-        auto itDoc = doctorIdIndex.begin();
-        while (itDoc != doctorIdIndex.end() && itDoc->doctorId < appointment.getDoctorID()) ++itDoc;
+        doctorIdLink.push_back({appointment.getAppointmentID(), -1});
+        DoctorIdIndex newDocEntry {(int)doctorIdLink.size() - 1, appointment.getDoctorID()};
+        auto itDoc = lower_bound(doctorIdIndex.begin(), doctorIdIndex.end(), appointment.getDoctorID(),
+            [](const DoctorIdIndex& entry, const string& val) { return entry.doctorId < val; });
         doctorIdIndex.insert(itDoc, newDocEntry);
-        doctorIdLink[rrn] = -1;
     }
 }
 
@@ -459,15 +468,17 @@ void IndexManager::deleteAppointment(const Appointment& appointment) {
 
     int docIdx = binarySearchString(doctorIdIndex, appointment.getDoctorID());
     if (docIdx != -1) {
-        int head = doctorIdIndex[docIdx].headRRN;
-        if (head == rrn) {
-            doctorIdIndex[docIdx].headRRN = doctorIdLink[rrn];
-        } else {
-            int curr = head;
-            while (curr != -1 && doctorIdLink[curr] != rrn) {
-                curr = doctorIdLink[curr];
+        int currNode = doctorIdIndex[docIdx].headRRN;
+        int prevNode = -1;
+        
+        while (currNode != -1) {
+            if (doctorIdLink[currNode].primaryKey == appointment.getAppointmentID()) {
+                if (prevNode == -1) doctorIdIndex[docIdx].headRRN = doctorIdLink[currNode].nextNodeIndex;
+                else doctorIdLink[prevNode].nextNodeIndex = doctorIdLink[currNode].nextNodeIndex;
+                break;
             }
-            if (curr != -1) doctorIdLink[curr] = doctorIdLink[rrn];
+            prevNode = currNode;
+            currNode = doctorIdLink[currNode].nextNodeIndex;
         }
         if (doctorIdIndex[docIdx].headRRN == -1) {
             doctorIdIndex.erase(doctorIdIndex.begin() + docIdx);
@@ -475,54 +486,49 @@ void IndexManager::deleteAppointment(const Appointment& appointment) {
     }
 }
 
-
 void IndexManager::updateAppointment(const Appointment& oldApp, const Appointment& newApp, int rrn) {
+    // 1. Update PK
     if (oldApp.getAppointmentID() != newApp.getAppointmentID()) {
         int pkIdx = binarySearchString(appointmentPkIndex, oldApp.getAppointmentID());
-        if (pkIdx != -1) {
-            appointmentPkIndex.erase(appointmentPkIndex.begin() + pkIdx);
-        }
+        if (pkIdx != -1) appointmentPkIndex.erase(appointmentPkIndex.begin() + pkIdx);
 
         AppointmentPkIndex newPkEntry {rrn, newApp.getAppointmentID()};
-        auto it = appointmentPkIndex.begin();
-        while (it != appointmentPkIndex.end() && it->appointmentId < newApp.getAppointmentID()) {
-            ++it;
-        }
+        auto it = lower_bound(appointmentPkIndex.begin(), appointmentPkIndex.end(), newApp.getAppointmentID(),
+            [](const AppointmentPkIndex& entry, const string& id) { return entry.appointmentId < id; });
         appointmentPkIndex.insert(it, newPkEntry);
     }
 
+    // 2. Update Doctor ID (Foreign Key)
     if (oldApp.getDoctorID() != newApp.getDoctorID()) {
+        // Unlink old
         int oldDocIdx = binarySearchString(doctorIdIndex, oldApp.getDoctorID());
         if (oldDocIdx != -1) {
-            int head = doctorIdIndex[oldDocIdx].headRRN;
-            if (head == rrn) {
-                doctorIdIndex[oldDocIdx].headRRN = doctorIdLink[rrn];
-            } else {
-                int curr = head;
-                while (curr != -1 && doctorIdLink[curr] != rrn) {
-                    curr = doctorIdLink[curr];
+            int currNode = doctorIdIndex[oldDocIdx].headRRN;
+            int prevNode = -1;
+            while (currNode != -1) {
+                if (doctorIdLink[currNode].primaryKey == oldApp.getAppointmentID()) {
+                    if (prevNode == -1) doctorIdIndex[oldDocIdx].headRRN = doctorIdLink[currNode].nextNodeIndex;
+                    else doctorIdLink[prevNode].nextNodeIndex = doctorIdLink[currNode].nextNodeIndex;
+                    break;
                 }
-                if (curr != -1) {
-                    doctorIdLink[curr] = doctorIdLink[rrn];
-                }
+                prevNode = currNode;
+                currNode = doctorIdLink[currNode].nextNodeIndex;
             }
-            if (doctorIdIndex[oldDocIdx].headRRN == -1) {
-                doctorIdIndex.erase(doctorIdIndex.begin() + oldDocIdx);
-            }
+            if (doctorIdIndex[oldDocIdx].headRRN == -1) doctorIdIndex.erase(doctorIdIndex.begin() + oldDocIdx);
         }
-
+        
+        // Link new
         int newDocIdx = binarySearchString(doctorIdIndex, newApp.getDoctorID());
         if (newDocIdx != -1) {
-            doctorIdLink[rrn] = doctorIdIndex[newDocIdx].headRRN;
-            doctorIdIndex[newDocIdx].headRRN = rrn;
+            int oldHeadNode = doctorIdIndex[newDocIdx].headRRN;
+            doctorIdLink.push_back({newApp.getAppointmentID(), oldHeadNode});
+            doctorIdIndex[newDocIdx].headRRN = doctorIdLink.size() - 1;
         } else {
-            DoctorIdIndex newEntry {rrn, newApp.getDoctorID()};
-            auto itDoc = doctorIdIndex.begin();
-            while (itDoc != doctorIdIndex.end() && itDoc->doctorId < newApp.getDoctorID()) {
-                ++itDoc;
-            }
+            doctorIdLink.push_back({newApp.getAppointmentID(), -1});
+            DoctorIdIndex newEntry {(int)doctorIdLink.size() - 1, newApp.getDoctorID()};
+            auto itDoc = lower_bound(doctorIdIndex.begin(), doctorIdIndex.end(), newApp.getDoctorID(),
+                [](const DoctorIdIndex& entry, const string& val) { return entry.doctorId < val; });
             doctorIdIndex.insert(itDoc, newEntry);
-            doctorIdLink[rrn] = -1;
         }
     }
 }
@@ -537,10 +543,12 @@ vector<int> IndexManager::getAppointmentRecNoByDoctorId(const string& doctorId) 
     int idx = binarySearchString(doctorIdIndex, doctorId);
     if (idx == -1) return results;
 
-    int curr = doctorIdIndex[idx].headRRN;
-    while (curr != -1) {
-        results.push_back(curr);
-        curr = doctorIdLink[curr];
+    int currNode = doctorIdIndex[idx].headRRN;
+    while (currNode != -1) {
+        string pk = doctorIdLink[currNode].primaryKey;
+        int rrn = getAppointmentRecNoByPk(pk); // Bound to PK!
+        if (rrn != -1) results.push_back(rrn);
+        currNode = doctorIdLink[currNode].nextNodeIndex;
     }
     return results;
 }

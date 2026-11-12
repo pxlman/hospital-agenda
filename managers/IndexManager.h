@@ -15,6 +15,12 @@
 using namespace std;
 using namespace IndexEntry;
 
+
+struct LinkNode {
+    string primaryKey;
+    int nextNodeIndex;
+};
+
 class IndexManager {
     private:
 
@@ -28,9 +34,9 @@ class IndexManager {
     vector<DoctorSpecialtyIndex> doctorSpecialtyIndex;
 
     // SK link index
-    vector<int> doctorIdLink;
-    vector<int> doctorNameLink;
-    vector<int> doctorSpecialtyLink;
+    vector<LinkNode> doctorIdLink;
+    vector<LinkNode> doctorNameLink;
+    vector<LinkNode> doctorSpecialtyLink;
 
 
     int binarySearchString(const vector<DoctorPkIndex>& arr, const string& target);
@@ -43,8 +49,6 @@ class IndexManager {
     public:
 
         IndexManager();
-
-        void initLinks(int maxDoctors, int maxAppointments);
 
         int getDoctorNameLinkSize() const { return doctorNameLink.size(); }
         int getDoctorIdLinkSize() const { return doctorIdLink.size(); }
