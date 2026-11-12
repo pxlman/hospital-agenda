@@ -155,8 +155,8 @@ void writeQuery(Engine& engine) {
 
 int main() {
     IndexManager indexManager;
-    DoctorRepository doctorRepo("../data/Doctors.bin", indexManager);
-    AppointmentRepository appointmentRepo("../data/Appointments.bin", indexManager);
+    DoctorRepository doctorRepo("data/Doctors.bin", indexManager);
+    AppointmentRepository appointmentRepo("data/Appointments.bin", indexManager);
     QueryExecutor executor(doctorRepo, appointmentRepo);
     Engine engine(executor);
 

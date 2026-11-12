@@ -5,12 +5,15 @@
 template <typename T>
 void FileManager<T>::initializeFile() {
     ifstream checker(filePath, ios::binary | ios::ate);
-    streampos fileSize = checker.is_open() ? checker.tellg() : streampos(-1);
+    streampos fileSize = checker.is_open() ? checker.tellg() : streampos(0);
     checker.close();
 
     if (fileSize != 0) return;
 
     ofstream creator(filePath, ios::binary);
+    if (!creator.is_open()) {
+        throw runtime_error("Cannot create file: " + filePath);
+    }
     int initialAvailHead = -1;
     creator.write(reinterpret_cast<const char*>(&initialAvailHead), sizeof(int));
     creator.close();
@@ -24,7 +27,9 @@ FileManager<T>::FileManager(const string& path) : filePath(path) {
 template <typename T>
 int FileManager<T>::getAvailHead() {
     ifstream file(filePath, ios::binary);
-    if (!file.is_open()) return -1;
+    if (!file.is_open()) {
+        throw runtime_error("Cannot open file: " + filePath);
+    }
 
     int availHead = -1;
     file.read(reinterpret_cast<char*>(&availHead), sizeof(int));
@@ -35,7 +40,9 @@ int FileManager<T>::getAvailHead() {
 template <typename T>
 void FileManager<T>::setAvailHead(int availHead) {
     fstream file(filePath, ios::in | ios::out | ios::binary);
-    if (!file.is_open()) return;
+    if (!file.is_open()) {
+        throw runtime_error("Cannot open file: " + filePath);
+    }
 
     file.seekp(0);
     file.write(reinterpret_cast<const char*>(&availHead), sizeof(int));
@@ -45,7 +52,9 @@ void FileManager<T>::setAvailHead(int availHead) {
 template <typename T>
 void FileManager<T>::writeRecord(int recordIndex, const T& record) {
     fstream file(filePath, ios::in | ios::out | ios::binary);
-    if (!file.is_open()) return;
+    if (!file.is_open()) {
+        throw runtime_error("Cannot open file for writing: " + filePath);
+    }
 
     int byteOffset = HEADER_SIZE + (recordIndex * sizeof(T));
     file.seekp(byteOffset);
@@ -56,6 +65,9 @@ void FileManager<T>::writeRecord(int recordIndex, const T& record) {
 template <typename T>
 T FileManager<T>::readRecord(int recordIndex) {
     ifstream file(filePath, ios::binary);
+    if (!file.is_open()) {
+        throw runtime_error("Cannot open file for reading: " + filePath);
+    }
     T record;
 
     int byteOffset = HEADER_SIZE + (recordIndex * sizeof(T));
