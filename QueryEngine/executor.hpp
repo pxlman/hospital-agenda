@@ -4,7 +4,6 @@
 #include "../Repositories/DoctorRepository.h"
 #include "../Repositories/AppointmentRepository.h"
 #include "ast.hpp"
-#include "../services/types.hpp"
 
 using Pred = std::function<bool(const Record&)>;
 
