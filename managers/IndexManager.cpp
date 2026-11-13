@@ -1,5 +1,6 @@
 #include "IndexManager.h"
 #include <algorithm>
+#include <filesystem>
 
 using namespace std;
 using namespace IndexEntry;
@@ -82,35 +83,36 @@ int IndexManager::binarySearchString(const vector<DoctorIdIndex>& arr, const str
 
 // INDEXES
 void IndexManager::saveIndexes() {
-    ofstream docPkOut("../data/Indexes/DoctorPK.bin", ios::binary | ios::trunc);
+    filesystem::create_directories("data/Indexes");
+    ofstream docPkOut("data/Indexes/DoctorPK.bin", ios::binary | ios::trunc);
     for (const auto& entry : doctorPkIndex) {
         docPkOut.write(reinterpret_cast<const char*>(&entry.rrn), sizeof(int));
         writeFixedString(docPkOut, entry.doctorId, 15);
     }
     docPkOut.close();
 
-    ofstream appPkOut("../data/Indexes/AppointmentPK.bin", ios::binary | ios::trunc);
+    ofstream appPkOut("data/Indexes/AppointmentPK.bin", ios::binary | ios::trunc);
     for (const auto& entry : appointmentPkIndex) {
         appPkOut.write(reinterpret_cast<const char*>(&entry.rrn), sizeof(int));
         writeFixedString(appPkOut, entry.appointmentId, 15);
     }
     appPkOut.close();
 
-    ofstream nameOut("../data/Indexes/DoctorName.bin", ios::binary | ios::trunc);
+    ofstream nameOut("data/Indexes/DoctorName.bin", ios::binary | ios::trunc);
     for (const auto& entry : doctorNameIndex) {
         nameOut.write(reinterpret_cast<const char*>(&entry.headRRN), sizeof(int));
         writeFixedString(nameOut, entry.name, 30);
     }
     nameOut.close();
 
-    ofstream specOut("../data/Indexes/DoctorSpecialty.bin", ios::binary | ios::trunc);
+    ofstream specOut("data/Indexes/DoctorSpecialty.bin", ios::binary | ios::trunc);
     for (const auto& entry : doctorSpecialtyIndex) {
         specOut.write(reinterpret_cast<const char*>(&entry.headRRN), sizeof(int));
         writeFixedString(specOut, entry.specialty, 20);
     }
     specOut.close();
 
-    ofstream docIdOut("../data/Indexes/DoctorID.bin", ios::binary | ios::trunc);
+    ofstream docIdOut("data/Indexes/DoctorID.bin", ios::binary | ios::trunc);
     for (const auto& entry : doctorIdIndex) {
         docIdOut.write(reinterpret_cast<const char*>(&entry.headRRN), sizeof(int));
         writeFixedString(docIdOut, entry.doctorId, 15);
@@ -118,21 +120,21 @@ void IndexManager::saveIndexes() {
     docIdOut.close();
 
     // --- SAVE LINK NODES ---
-    ofstream nameLinkOut("../data/Indexes/DoctorNameLinks.bin", ios::binary | ios::trunc);
+    ofstream nameLinkOut("data/Indexes/DoctorNameLinks.bin", ios::binary | ios::trunc);
     for (const auto& node : doctorNameLink) {
         writeFixedString(nameLinkOut, node.primaryKey, 15);
         nameLinkOut.write(reinterpret_cast<const char*>(&node.nextNodeIndex), sizeof(int));
     }
     nameLinkOut.close();
 
-    ofstream specLinkOut("../data/Indexes/DoctorSpecialtyLinks.bin", ios::binary | ios::trunc);
+    ofstream specLinkOut("data/Indexes/DoctorSpecialtyLinks.bin", ios::binary | ios::trunc);
     for (const auto& node : doctorSpecialtyLink) {
         writeFixedString(specLinkOut, node.primaryKey, 15);
         specLinkOut.write(reinterpret_cast<const char*>(&node.nextNodeIndex), sizeof(int));
     }
     specLinkOut.close();
 
-    ofstream docIdLinkOut("../data/Indexes/DoctorIDLinks.bin", ios::binary | ios::trunc);
+    ofstream docIdLinkOut("data/Indexes/DoctorIDLinks.bin", ios::binary | ios::trunc);
     for (const auto& node : doctorIdLink) {
         writeFixedString(docIdLinkOut, node.primaryKey, 15);
         docIdLinkOut.write(reinterpret_cast<const char*>(&node.nextNodeIndex), sizeof(int));
@@ -141,6 +143,7 @@ void IndexManager::saveIndexes() {
 }
 
 void IndexManager::loadIndexes() {
+    filesystem::create_directories("data/Indexes");
     doctorPkIndex.clear();
     appointmentPkIndex.clear();
     doctorNameIndex.clear();
@@ -150,7 +153,7 @@ void IndexManager::loadIndexes() {
     doctorSpecialtyLink.clear();
     doctorIdLink.clear();
 
-    ifstream docPkIn("../data/Indexes/DoctorPK.bin", ios::binary);
+    ifstream docPkIn("data/Indexes/DoctorPK.bin", ios::binary);
     if (docPkIn.is_open()) {
         while (docPkIn.peek() != EOF) {
             DoctorPkIndex entry;
@@ -161,7 +164,7 @@ void IndexManager::loadIndexes() {
         docPkIn.close();
     }
 
-    ifstream appPkIn("../data/Indexes/AppointmentPK.bin", ios::binary);
+    ifstream appPkIn("data/Indexes/AppointmentPK.bin", ios::binary);
     if (appPkIn.is_open()) {
         while (appPkIn.peek() != EOF) {
             AppointmentPkIndex entry;
@@ -172,7 +175,7 @@ void IndexManager::loadIndexes() {
         appPkIn.close();
     }
 
-    ifstream nameIn("../data/Indexes/DoctorName.bin", ios::binary);
+    ifstream nameIn("data/Indexes/DoctorName.bin", ios::binary);
     if (nameIn.is_open()) {
         while (nameIn.peek() != EOF) {
             DoctorNameIndex entry;
@@ -183,7 +186,7 @@ void IndexManager::loadIndexes() {
         nameIn.close();
     }
 
-    ifstream specIn("../data/Indexes/DoctorSpecialty.bin", ios::binary);
+    ifstream specIn("data/Indexes/DoctorSpecialty.bin", ios::binary);
     if (specIn.is_open()) {
         while (specIn.peek() != EOF) {
             DoctorSpecialtyIndex entry;
@@ -194,7 +197,7 @@ void IndexManager::loadIndexes() {
         specIn.close();
     }
 
-    ifstream docIdIn("../data/Indexes/DoctorID.bin", ios::binary);
+    ifstream docIdIn("data/Indexes/DoctorID.bin", ios::binary);
     if (docIdIn.is_open()) {
         while (docIdIn.peek() != EOF) {
             DoctorIdIndex entry;
@@ -206,7 +209,7 @@ void IndexManager::loadIndexes() {
     }
 
     // --- LOAD LINK NODES ---
-    ifstream nameLinkIn("../data/Indexes/DoctorNameLinks.bin", ios::binary);
+    ifstream nameLinkIn("data/Indexes/DoctorNameLinks.bin", ios::binary);
     if (nameLinkIn.is_open()) {
         while (nameLinkIn.peek() != EOF) {
             LinkNode node;
@@ -217,7 +220,7 @@ void IndexManager::loadIndexes() {
         nameLinkIn.close();
     }
 
-    ifstream specLinkIn("../data/Indexes/DoctorSpecialtyLinks.bin", ios::binary);
+    ifstream specLinkIn("data/Indexes/DoctorSpecialtyLinks.bin", ios::binary);
     if (specLinkIn.is_open()) {
         while (specLinkIn.peek() != EOF) {
             LinkNode node;
@@ -228,7 +231,7 @@ void IndexManager::loadIndexes() {
         specLinkIn.close();
     }
 
-    ifstream docIdLinkIn("../data/Indexes/DoctorIDLinks.bin", ios::binary);
+    ifstream docIdLinkIn("data/Indexes/DoctorIDLinks.bin", ios::binary);
     if (docIdLinkIn.is_open()) {
         while (docIdLinkIn.peek() != EOF) {
             LinkNode node;

@@ -61,8 +61,12 @@ void addNewAppointment(AppointmentRepository& appointmentRepo) {
     string id = prompt("Appointment ID: ");
     string date = prompt("Appointment Date: ");
     string docId = prompt("Doctor ID: ");
-    if (appointmentRepo.add(Appointment(id, date, docId)))
+    try {
+        appointmentRepo.add(Appointment(id, date, docId));
         cout << "Appointment added successfully.\n";
+    } catch (const exception& e) {
+        cout << e.what() << "\n";
+    }
 }
 
 void updateDoctorName(DoctorRepository& doctorRepo) {
@@ -90,14 +94,22 @@ void updateDoctorId(DoctorRepository& doctorRepo) {
 void updateAppointmentDate(AppointmentRepository& appointmentRepo) {
     string id = prompt("Appointment ID: ");
     string newDate = prompt("New Date: ");
-    if (appointmentRepo.updateDate(id, newDate))
+    try {
+        appointmentRepo.updateDate(id, newDate);
         cout << "Appointment date updated successfully.\n";
+    } catch (const exception& e) {
+        cout << e.what() << "\n";
+    }
 }
 
 void deleteAppointment(AppointmentRepository& appointmentRepo) {
     string id = prompt("Appointment ID: ");
-    if (appointmentRepo.remove(id))
+    try {
+        appointmentRepo.remove(id);
         cout << "Appointment deleted successfully.\n";
+    } catch (const exception& e) {
+        cout << e.what() << "\n";
+    }
 }
 
 void deleteDoctor(DoctorRepository& doctorRepo) {

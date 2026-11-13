@@ -1,9 +1,22 @@
 #include "FileManager.h"
 #include "../models/Doctor.h"
 #include "../models/Appointment.h"
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 template <typename T>
 void FileManager<T>::initializeFile() {
+    fs::path path(filePath);
+
+    if (!path.parent_path().empty() && !fs::exists(path.parent_path())) {
+        fs::create_directories(path.parent_path());
+    }
+
+    if (fs::is_directory(path)) {
+        throw runtime_error("Path is a directory, expected file: " + filePath);
+    }
+
     ifstream checker(filePath, ios::binary | ios::ate);
     streampos fileSize = checker.is_open() ? checker.tellg() : streampos(0);
     checker.close();
